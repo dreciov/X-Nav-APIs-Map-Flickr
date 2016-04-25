@@ -1,0 +1,133 @@
+<html>
+	<head>
+    	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    	<link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+	   <script type = "text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-beta1/jquery.js"></script>
+	   <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+	   <style>
+						body {
+				margin: 0;
+			}
+			div#mapid {
+				width: 100%;
+				height: 100%;
+			}
+			div#search {
+				background-color: white;
+				position: absolute;
+				bottom: 40px;
+				left: 40px;
+				width: auto;
+				height: auto;
+				padding: 10px;
+			}
+			div#search input {
+				width: 200px;
+			}
+			div#results {
+				font-style: sans-serif;
+				color: black;
+				font-size: 75%;
+			}
+		</style>
+	</head>
+	<body>
+
+			 <div id="mapid"></div>
+			   <div id="search">
+		          <input type="text" name="addr" value="" id="addr" size="10" />
+		          <button type="button" onclick="addr_search();">Search</button>
+		          <div id="results"/></div>
+		        </div>
+				<script>
+						var map;
+						var feature;
+
+					function load_map() {
+						map = new L.Map('mapid', {zoomControl: true});
+
+						var osmUrl = 'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+							osmAttribution = 'Map data &copy; 2012 <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+							osm = new L.TileLayer(osmUrl, {maxZoom: 18, attribution: osmAttribution});
+
+						map.setView(new L.LatLng(51.538594, -0.198075), 12).addLayer(osm);
+					}
+
+					function chooseAddr(lat1, lng1, lat2, lng2, osm_type) {
+						var loc1 = new L.LatLng(lat1, lng1);
+						var loc2 = new L.LatLng(lat2, lng2);
+						var bounds = new L.LatLngBounds(loc1, loc2);
+
+						if (feature) {
+							map.removeLayer(feature);
+						}
+						if (osm_type == "node") {
+							feature = L.circle( loc1, 25, {color: 'green', fill: false}).addTo(map);
+							map.fitBounds(bounds);
+							map.setZoom(18);
+						} else {
+							var loc3 = new L.LatLng(lat1, lng2);
+							var loc4 = new L.LatLng(lat2, lng1);
+
+							feature = L.polyline( [loc1, loc4, loc2, loc3, loc1], {color: 'red'}).addTo(map);
+							map.fitBounds(bounds);
+						}
+					}
+
+					function addr_search() {
+					    var inp = document.getElementById("addr");
+
+					    $.getJSON('http://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + inp.value, function(data) {
+					        var items = [];
+
+					        $.each(data, function(key, val) {
+					            bb = val.boundingbox;
+					            items.push("<li><a href='#' onclick='chooseAddr(" + bb[0] + ", " + bb[2] + ", " + bb[1] + ", " + bb[3]  + ", \"" + val.osm_type + "\");return false;'>" + val.display_name + '</a></li>');
+					        });
+
+							$('#results').empty();
+					        if (items.length != 0) {
+					            $('<p>', { html: "Search results:" }).appendTo('#results');
+					            $('<ul/>', {
+					                'class': 'my-new-list',
+					                html: items.join('')
+					            }).appendTo('#results');
+					        } else {
+					            $('<p>', { html: "No results found" }).appendTo('#results');
+					        }
+					    });
+					}
+
+					$(document).ready(function() {
+					    load_map();
+
+					    /* pagina de referencia para móvil: http://leafletjs.com/examples/mobile.html */
+					    map.locate({setView: true, maxZoom: 16});
+
+					    function onLocationFound(e) {
+					      var radius = e.accuracy / 2;
+					      L.marker(e.latlng).addTo(map).bindPopup("You are within " + radius + " meters from this point").openPopup();
+					      L.circle(e.latlng, radius).addTo(map);
+					    }
+
+					    map.on('locationfound', onLocationFound);
+
+					    function onLocationError(e) {
+					      alert(e.message);
+					    }
+					    map.on('locationerror', onLocationError);
+
+					    var popup = L.popup();
+					    function onMapClick(e) {
+					       var coor = e.latlng;
+					       console.log(coor);
+					       popup.setLatLng(e.latlng).setContent("Ubicación: " + e.latlng.toString()).openOn(map);
+					    }
+					    map.on('click', onMapClick);
+
+					});
+			</script>
+
+
+		</body>
+		</html>
